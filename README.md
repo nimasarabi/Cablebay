@@ -70,6 +70,10 @@ So you can play music quietly for yourself while it plays loud on stream, keep a
 
 🪟 **Floating panel + menu bar** — the same mixer in two places: a floating panel that opens at launch, and a dropdown from the menu bar icon for when you'd rather keep the screen clear. Both have every channel strip, the masters and the patch bay, and both resize in three steps with the magnifier buttons.
 
+<p align="center">
+  <img src="docs/screenshots/menu-bar.png" width="460" alt="Cablebay menu bar dropdown">
+</p>
+
 🎧 **Keep my devices** — when headphones, AirPods or a USB device connect and macOS switches to them, Cablebay switches back to the output and input you chose (optional).
 
 ⚙️ **Setup** — inputs, per-app outputs, panel size, scroll-wheel speed, launch at login, the Mixer Stream driver, and a one-click full uninstall.
