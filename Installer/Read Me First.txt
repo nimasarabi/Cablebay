@@ -1,4 +1,4 @@
-Cablebay 1.1 — install
+Cablebay 1.2 — install
 ======================
 Made by Nima Sarabi · https://github.com/nimasarabi/Cablebay
 

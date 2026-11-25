@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nimasarabi/Cablebay/releases/latest/download/Cablebay-1.1.dmg">
-    <img src="https://img.shields.io/badge/Download-Cablebay%201.1%20for%20macOS-8b5cf6?style=for-the-badge&logo=apple&logoColor=white" alt="Download Cablebay for macOS">
+  <a href="https://github.com/nimasarabi/Cablebay/releases/latest/download/Cablebay-1.2.dmg">
+    <img src="https://img.shields.io/badge/Download-Cablebay%201.2%20for%20macOS-8b5cf6?style=for-the-badge&logo=apple&logoColor=white" alt="Download Cablebay for macOS">
   </a>
 </p>
 
@@ -80,7 +80,7 @@ So you can play music quietly for yourself while it plays loud on stream, keep a
 
 ## Download & install
 
-1. **[Download Cablebay-1.1.dmg](https://github.com/nimasarabi/Cablebay/releases/latest/download/Cablebay-1.1.dmg)** (or grab it from the [Releases page](https://github.com/nimasarabi/Cablebay/releases)).
+1. **[Download Cablebay-1.2.dmg](https://github.com/nimasarabi/Cablebay/releases/latest/download/Cablebay-1.2.dmg)** (or grab it from the [Releases page](https://github.com/nimasarabi/Cablebay/releases)).
 2. Open the DMG and drag **Cablebay** onto **Applications**.
 3. Open it the first time with **right-click → Open → Open**.
    Cablebay is ad-hoc signed (no paid Apple Developer ID), so macOS asks once. If it still refuses, go to
@@ -99,6 +99,16 @@ For the best sound, keep a channel's STREAM fader and the STREAM master at 100%:
 ### Upgrading from Volume Mixer
 
 Cablebay used to be called **Volume Mixer**. Quit Volume Mixer, install Cablebay, then move Volume Mixer to the Trash. The first time Cablebay opens it takes over your levels, routing, panel position and login item. macOS will ask for audio permission again because the app has a new name. The Mixer Stream device keeps working as it is.
+
+## What's new in 1.2
+
+- **The menu bar works like the panel** — the menu bar dropdown now shows the full mixer: every channel strip, the masters and the patch bay.
+- **Scrolls past five channels** — with more than five channels, the row scrolls sideways (trackpad, Shift + wheel, or the arrows on its edges).
+- **Even channel strips** — a channel with its own outputs shows a small icon instead of an extra line, so all faders line up.
+- **Smoother re-patching** — switching an app's outputs no longer lets it play through the default output for a moment.
+- **Zoom buttons** — magnifier buttons resize the mixer, and a tiny coffee cup links to Buy Me a Coffee.
+- **Steadier Settings** — the Settings window no longer flickers while you move faders, and its scroll bar is no longer cut off.
+- **Safer installs** — tighter quoting in the driver installer and extra bounds checks in the Mixer Stream driver.
 
 ## What's new in 1.1
 
