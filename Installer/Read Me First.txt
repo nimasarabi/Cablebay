@@ -1,0 +1,31 @@
+Cablebay 1.1 — install
+======================
+Made by Nima Sarabi · https://github.com/nimasarabi/Cablebay
+
+1. Drag "Cablebay" onto the Applications folder.
+   Upgrading from Volume Mixer (Cablebay's old name)? Quit Volume Mixer
+   first, then move it to the Trash. Cablebay takes over its settings and
+   login item the first time it opens.
+
+2. Open it the first time with a right-click:
+   Applications → right-click "Cablebay" → Open → Open.
+   (The app isn't signed with a paid Apple Developer ID, so macOS asks once.
+   If macOS still refuses, open System Settings → Privacy & Security and
+   click "Open Anyway" next to Cablebay.)
+   The mixer panel opens every time Cablebay starts. To turn that off:
+   SETUP → General → "Open mixer panel when Cablebay starts".
+
+3. When you first change an app's volume, macOS asks to let Cablebay
+   record system audio. Click Allow — that's how per-app volume works.
+   (Coming from Volume Mixer, macOS asks again because of the new name.)
+
+4. Optional — the "Mixer Stream" device (send your stream mix to OBS, Zoom,
+   Discord or Clubdeck): click SETUP in the mixer → Stream device →
+   Install Mixer Stream. It asks for your Mac password and restarts audio
+   for a few seconds. Then pick "Mixer Stream" as the microphone in that app.
+   Already installed it with Volume Mixer? It keeps working; there's no need
+   to install it again.
+
+Needs macOS 14.2 (Sonoma) or later. Works on Apple Silicon and Intel Macs.
+
+Copyright © 2026 Nima Sarabi. Released under the MIT License.

@@ -1,0 +1,6 @@
+build/
+dist/
+.DS_Store
+# Old Volume Mixer 1.0 working copy (kept locally, not part of the repo)
+VolumeMixer/
+*.test
