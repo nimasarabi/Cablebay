@@ -87,17 +87,27 @@ extension EnvironmentValues {
     }
 }
 
+/// A control's frame, cut down to the part a scrolling row actually shows (nil when it's scrolled out of view).
+func visibleFrame(_ frame: CGRect, clip: CGRect?) -> CGRect? {
+    guard let clip = clip else { return frame }
+    let f = frame.intersection(clip)
+    return f.isNull || f.isEmpty ? nil : f
+}
+
 private struct PanelControlModifier: ViewModifier {
     let id: String
     @Environment(\.controlScope) private var scope
+    @Environment(\.controlClip) private var clip
 
     func body(content: Content) -> some View {
         let key = scope + ":" + id
+        let clip = self.clip
         return content.background(
             GeometryReader { g in
                 Color.clear
-                    .onAppear { PanelWindow.controls[key] = g.frame(in: .global) }
-                    .onChange(of: g.frame(in: .global)) { _, f in PanelWindow.controls[key] = f }
+                    .onAppear { PanelWindow.controls[key] = visibleFrame(g.frame(in: .global), clip: clip) }
+                    .onChange(of: g.frame(in: .global)) { _, f in PanelWindow.controls[key] = visibleFrame(f, clip: clip) }
+                    .onChange(of: clip) { _, c in PanelWindow.controls[key] = visibleFrame(g.frame(in: .global), clip: c) }
                     .onDisappear { PanelWindow.controls[key] = nil }
             }
         )
@@ -161,6 +171,8 @@ enum ScrollTargets {
     static func handle(_ point: CGPoint, _ event: NSEvent, scope: String) -> Bool {
         let prefix = scope + ":"
         guard let (id, _) = targets.first(where: { $0.key.hasPrefix(prefix) && $0.value.frame.contains(point) }) else { return false }
+        // A sideways swipe (or Shift + wheel) scrolls the channel row instead of moving a fader.
+        if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) || event.modifierFlags.contains(.shift) { return false }
         var dy = Double(event.scrollingDeltaY)
         if event.isDirectionInvertedFromDevice { dy = -dy } // wheel up = louder, whatever the scroll setting
         let speed = AppSettings.shared.scrollSpeed
@@ -198,19 +210,24 @@ private struct ScrollAdjustModifier: ViewModifier {
     let value: Binding<Double>
     let onChange: () -> Void
     @Environment(\.controlScope) private var scope
+    @Environment(\.controlClip) private var clip
 
     func body(content: Content) -> some View {
         let key = scope + ":" + id
-        let value = self.value, onChange = self.onChange
+        let value = self.value, onChange = self.onChange, clip = self.clip
         let adjust: (Double) -> Void = { delta in
             value.wrappedValue = min(1, max(0, value.wrappedValue + delta))
             onChange()
         }
+        func register(_ frame: CGRect, _ clip: CGRect?) {
+            ScrollTargets.targets[key] = visibleFrame(frame, clip: clip).map { ($0, adjust) }
+        }
         return content.background(
             GeometryReader { g in
                 Color.clear
-                    .onAppear { ScrollTargets.targets[key] = (g.frame(in: .global), adjust) }
-                    .onChange(of: g.frame(in: .global)) { _, frame in ScrollTargets.targets[key] = (frame, adjust) }
+                    .onAppear { register(g.frame(in: .global), clip) }
+                    .onChange(of: g.frame(in: .global)) { _, frame in register(frame, clip) }
+                    .onChange(of: clip) { _, c in register(g.frame(in: .global), c) }
                     .onDisappear { ScrollTargets.targets[key] = nil }
             }
         )
@@ -514,17 +531,17 @@ struct ChannelStrip: View {
                         .foregroundColor(HW.ledOrange)
                         .help(ch.error ?? "")
                 }
+                // A channel with its own outputs gets a small icon instead of an extra line, so every strip
+                // keeps the same height and the faders line up.
+                if let own = ch.outputOverride {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: m.font(8), weight: .bold))
+                        .foregroundColor(HW.you)
+                        .help("Plays on " + (own.isEmpty ? "no output" : own.map(model.deviceName).joined(separator: ", "))
+                              + " instead of the All apps outputs (change it in the patch bay)")
+                }
             }
             .frame(width: m.faderWidth * 2 + 26 * m.s)
-
-            if let own = ch.outputOverride {
-                Text("on " + own.map(model.deviceName).joined(separator: ", "))
-                    .font(.system(size: m.font(8)))
-                    .foregroundColor(HW.you)
-                    .lineLimit(1)
-                    .frame(width: m.faderWidth * 2 + 26 * m.s)
-                    .help("This app plays on its own device (change in Setup)")
-            }
 
             HStack(alignment: .bottom, spacing: 4 * m.s) {
                 FaderColumn(title: "YOU", color: HW.you, value: $ch.monitorLevel, muted: ch.monitorMuted,
@@ -547,6 +564,107 @@ struct ChannelStrip: View {
         .padding(.horizontal, 6 * m.s)
         .background(RoundedRectangle(cornerRadius: 12 * m.s, style: .continuous).fill(HW.strip))
         .overlay(RoundedRectangle(cornerRadius: 12 * m.s, style: .continuous).strokeBorder(Color.black.opacity(0.7), lineWidth: 1))
+    }
+}
+
+// MARK: - Scrolling channel row
+
+/// Which strip is first in view (SwiftUI @State needs a macro plugin the Command Line Tools don't ship).
+final class StripScrollState: ObservableObject {
+    static let panel = StripScrollState()
+    static let menu = StripScrollState()
+    @Published var firstID: String?
+}
+
+/// The area a scrolling row shows, in global coordinates. Controls scrolled out of it don't count for
+/// mouse-wheel targets or panel dragging, even though their frames still exist under neighbouring views.
+private struct ControlClipKey: EnvironmentKey {
+    static let defaultValue: CGRect? = nil
+}
+
+extension EnvironmentValues {
+    var controlClip: CGRect? {
+        get { self[ControlClipKey.self] }
+        set { self[ControlClipKey.self] = newValue }
+    }
+}
+
+/// More channels than fit: a row of `visibleStrips` that scrolls sideways, snapping to whole strips.
+/// Scroll with a trackpad or Shift + mouse wheel, or click the arrows on its edges.
+struct StripScroller: View {
+    let list: [Channel]
+    let model: MixerModel
+    let m: Metrics
+    @ObservedObject var scroll: StripScrollState
+
+    private var spacing: CGFloat { 8 * m.s }
+    private var firstIndex: Int {
+        scroll.firstID.flatMap { id in list.firstIndex { $0.id == id } } ?? 0
+    }
+    private var canGoBack: Bool { firstIndex > 0 }
+    private var canGoForward: Bool { firstIndex + HardwareMixerView.visibleStrips < list.count }
+
+    var body: some View {
+        // Invisible strips give the row exactly the width of `visibleStrips` strips and their natural height.
+        return HStack(alignment: .top, spacing: spacing) {
+            ForEach(0..<HardwareMixerView.visibleStrips, id: \.self) { _ in
+                ChannelStrip(ch: list[0], model: model, m: m)
+            }
+        }
+            .hidden()
+            .environment(\.controlScope, "sizer") // registers nothing a window looks up
+            .overlay(
+                GeometryReader { g in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .top, spacing: spacing) {
+                            ForEach(list) { ch in
+                                ChannelStrip(ch: ch, model: model, m: m).id(ch.id)
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollPosition(id: $scroll.firstID)
+                    .environment(\.controlClip, g.frame(in: .global))
+                }
+            )
+            .overlay(alignment: .leading) { edge(back: true) }
+            .overlay(alignment: .trailing) { edge(back: false) }
+    }
+
+    /// A soft fade and an arrow on an edge with more strips beyond it.
+    @ViewBuilder
+    private func edge(back: Bool) -> some View {
+        if back ? canGoBack : canGoForward {
+            ZStack {
+                LinearGradient(colors: [Color(white: 0.09), Color(white: 0.09).opacity(0)],
+                               startPoint: back ? .leading : .trailing, endPoint: back ? .trailing : .leading)
+                    .frame(width: 28 * m.s)
+                    .allowsHitTesting(false)
+                Button(action: { step(back ? -1 : 1) }) {
+                    Image(systemName: back ? "chevron.left" : "chevron.right")
+                        .font(.system(size: m.font(10), weight: .bold))
+                        .foregroundColor(Color(white: 0.85))
+                        .frame(width: 22 * m.s + 4, height: 22 * m.s + 4)
+                        .background(Circle().fill(Color(white: 0.16)))
+                        .overlay(Circle().strokeBorder(Color(white: 0.32), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.6), radius: 3)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(back ? "Show earlier channels" : "Show more channels")
+                .panelControl(back ? "strips.back" : "strips.forward")
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    /// Moves by a page of strips (one fewer than fit, so one stays in view for context).
+    private func step(_ direction: Int) {
+        let page = max(1, HardwareMixerView.visibleStrips - 1)
+        let last = max(0, list.count - HardwareMixerView.visibleStrips)
+        let target = min(last, max(0, firstIndex + direction * page))
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { scroll.firstID = list[target].id }
     }
 }
 
@@ -659,6 +777,9 @@ struct HardwareMixerView: View {
 
     // MARK: Channels
 
+    /// Up to this many channel strips are shown side by side; more scroll sideways.
+    static let visibleStrips = 5
+
     private var channels: some View {
         let list = model.allChannels
         let stripWidth = m.faderWidth * 2 + 26 * m.s + 12 * m.s
@@ -675,18 +796,13 @@ struct HardwareMixerView: View {
                         .multilineTextAlignment(.center)
                 }
                 .frame(width: stripWidth * 2, height: m.fader + 80 * m.s)
-            } else if list.count <= 4 {
+            } else if list.count <= HardwareMixerView.visibleStrips {
                 HStack(alignment: .top, spacing: 8 * m.s) {
                     ForEach(list) { ChannelStrip(ch: $0, model: model, m: m) }
                 }
             } else {
-                ScrollView(.horizontal, showsIndicators: true) {
-                    HStack(alignment: .top, spacing: 8 * m.s) {
-                        ForEach(list) { ChannelStrip(ch: $0, model: model, m: m) }
-                    }
-                    .padding(.bottom, 10)
-                }
-                .frame(width: stripWidth * 4 + 8 * m.s * 3, height: m.fader + 110 * m.s)
+                StripScroller(list: list, model: model, m: m,
+                              scroll: inMenu ? StripScrollState.menu : StripScrollState.panel)
             }
         }
     }
