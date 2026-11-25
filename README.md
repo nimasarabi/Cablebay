@@ -39,9 +39,9 @@
 ---
 
 <p align="center">
-  <img src="docs/screenshots/panel.png" width="324" alt="Cablebay floating mixer panel">
+  <img src="docs/screenshots/panel.png" width="420" alt="Cablebay mixer with a channel strip for every app">
   &nbsp;&nbsp;
-  <img src="docs/screenshots/patch-bay.png" width="421" alt="Cablebay with the patch bay open">
+  <img src="docs/screenshots/patch-bay.png" width="420" alt="Cablebay with the patch bay open">
 </p>
 
 ## Why Cablebay?
@@ -68,11 +68,7 @@ So you can play music quietly for yourself while it plays loud on stream, keep a
 
 📡 **Mixer Stream virtual device** — a built-in Core Audio driver that turns your STREAM mix into a microphone for any app. Sound keeps its original timing, so the stream isn't resampled to follow your speakers or AirPods.
 
-🪟 **Floating panel + menu bar widget** — a compact always-available mixer panel (opens at launch, resizable) and a menu bar popover with the patch bay, system volume and mic sliders, and per-app levels.
-
-<p align="center">
-  <img src="docs/screenshots/menu-bar.png" width="460" alt="Cablebay menu bar widget">
-</p>
+🪟 **Floating panel + menu bar** — the same mixer in two places: a floating panel that opens at launch, and a dropdown from the menu bar icon for when you'd rather keep the screen clear. Both have every channel strip, the masters and the patch bay, and both resize in three steps with the magnifier buttons.
 
 🎧 **Keep my devices** — when headphones, AirPods or a USB device connect and macOS switches to them, Cablebay switches back to the output and input you chose (optional).
 
